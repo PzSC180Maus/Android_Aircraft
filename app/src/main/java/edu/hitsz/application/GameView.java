@@ -16,8 +16,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private volatile boolean running;
     private Thread thread;
-    private final Game game;
-    private float offsetX, offsetY, scale = 1;
+    private final Object gameLock = new Object();
+    private Game game;
+    private float scale = 1;
     private int backgroundY;
 
     public GameView(Context context) {
@@ -34,10 +35,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         thread.start();
     }
     @Override public void surfaceChanged(SurfaceHolder h, int format, int w, int hgt) {
-        synchronized (game) {
-            scale = Math.min(w / 512f, hgt / 768f);
-            offsetX = (w - 512 * scale) / 2;
-            offsetY = (hgt - 768 * scale) / 2;
+        synchronized (gameLock) {
+            if (w <= 0 || hgt <= 0) return;
+            int oldHeight = Main.WINDOW_HEIGHT;
+            scale = w / (float) Main.WINDOW_WIDTH;
+            Main.WINDOW_HEIGHT = Math.max(1, Math.round(hgt / scale));
+            game.moveHero(game.getHero().getLocationX(),
+                    Math.round(game.getHero().getLocationY() * (Main.WINDOW_HEIGHT / (float) oldHeight)));
         }
     }
     @Override public void surfaceDestroyed(SurfaceHolder h) {
@@ -57,7 +61,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             Canvas c = null;
             try {
                 c = holder.lockCanvas();
-                if (c != null) synchronized (game) { game.tick(); drawGame(c); }
+                if (c != null) synchronized (gameLock) { game.tick(); drawGame(c); }
             } finally { if (c != null) holder.unlockCanvasAndPost(c); }
             long delay = 40 - (android.os.SystemClock.uptimeMillis() - start);
             if (delay > 0) try { Thread.sleep(delay); } catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
@@ -65,16 +69,22 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     }
     private void drawGame(Canvas c) {
         c.drawColor(Color.BLACK);
-        c.save(); c.translate(offsetX, offsetY); c.scale(scale, scale);
-        c.drawBitmap(ImageManager.BACKGROUND_IMAGE, null, new Rect(0, backgroundY - 768, 512, backgroundY), paint);
-        c.drawBitmap(ImageManager.BACKGROUND_IMAGE, null, new Rect(0, backgroundY, 512, backgroundY + 768), paint);
-        backgroundY = (backgroundY + 1) % 768;
+        // Tile the background at its native aspect ratio, covering taller screens as needed.
+        int tileHeight = Math.max(1, Math.round(c.getWidth() *
+                (ImageManager.BACKGROUND_IMAGE.getHeight() / (float) ImageManager.BACKGROUND_IMAGE.getWidth())));
+        int scroll = Math.round(backgroundY * scale) % tileHeight;
+        for (int top = scroll - tileHeight; top < c.getHeight(); top += tileHeight) {
+            c.drawBitmap(ImageManager.BACKGROUND_IMAGE, null,
+                    new Rect(0, top, c.getWidth(), top + tileHeight), paint);
+        }
+        c.save(); c.scale(scale, scale);
+        backgroundY = (backgroundY + 1) % Math.max(1, Math.round(tileHeight / scale));
         drawObjects(c, game.getEnemyBullets()); drawObjects(c, game.getHeroBullets());
         drawObjects(c, game.getEnemies()); drawObjects(c, game.getSupplies()); drawObject(c, game.getHero());
         paint.setColor(Color.RED); paint.setTextSize(22); paint.setFakeBoldText(true);
         c.drawText("SCORE: " + game.getScore(), 10, 25, paint);
         c.drawText("LIFE: " + game.getHp(), 10, 50, paint);
-        if (game.isGameOver()) { paint.setTextSize(42); c.drawText("GAME OVER", 125, 380, paint); }
+        if (game.isGameOver()) { paint.setTextSize(42); c.drawText("GAME OVER", 125, Main.WINDOW_HEIGHT / 2f, paint); paint.setTextSize(20); c.drawText("TAP TO RESTART", 166, Main.WINDOW_HEIGHT / 2f + 35, paint); }
         paint.setColor(Color.WHITE); paint.setFakeBoldText(false); c.restore();
     }
     private void drawObjects(Canvas c, List<? extends AbstractFlyingObject> objects) { for (AbstractFlyingObject o : objects) drawObject(c, o); }
@@ -82,8 +92,13 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         c.drawBitmap(o.getImage(), o.getLocationX() - o.getWidth()/2f, o.getLocationY() - o.getHeight()/2f, paint);
     }
     @Override public boolean onTouchEvent(MotionEvent event) {
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            synchronized (gameLock) {
+                if (game.isGameOver()) { game = new EasyGame(null); backgroundY = 0; return true; }
+            }
+        }
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN || event.getActionMasked() == MotionEvent.ACTION_MOVE) {
-            synchronized (game) { game.moveHero((int)((event.getX()-offsetX)/scale), (int)((event.getY()-offsetY)/scale)); }
+            synchronized (gameLock) { game.moveHero((int)(event.getX()/scale), (int)(event.getY()/scale)); }
             return true;
         }
         return true;
