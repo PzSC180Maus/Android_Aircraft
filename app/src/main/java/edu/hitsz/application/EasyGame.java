@@ -1,5 +1,6 @@
 package edu.hitsz.application;
 
+import edu.hitsz.music.GameSound;
 import edu.hitsz.rank.GameDifficulty;
 
 /**
@@ -7,8 +8,8 @@ import edu.hitsz.rank.GameDifficulty;
  */
 public class EasyGame extends Game {
 
-    public EasyGame(Runnable gameOverCallback) {
-        super(GameDifficulty.EASY, gameOverCallback, Integer.MAX_VALUE / 2);
+    public EasyGame(Runnable gameOverCallback, GameSound sound) {
+        super(GameDifficulty.EASY, gameOverCallback, sound, Integer.MAX_VALUE / 2);
         this.enemySpawnCycle = 24;
         this.enemyMaxNumber = 4;
         this.enemySpeedFactor = 0.9;

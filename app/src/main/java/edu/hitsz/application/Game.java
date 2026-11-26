@@ -21,6 +21,7 @@ import edu.hitsz.observer.PropEffectObserver;
 import edu.hitsz.prop.AbstractProp;
 import edu.hitsz.prop.BombSupply;
 import edu.hitsz.prop.FreezeSupply;
+import edu.hitsz.music.GameSound;
 import edu.hitsz.rank.GameDifficulty;
 
 
@@ -102,14 +103,16 @@ public abstract class Game  {
     private boolean gameOverFlag = false;
     private final GameDifficulty difficulty;
     private final Runnable gameOverCallback;
+    protected final GameSound sound;
 
     private long battleTimeMillis = 0;
     private int nextBossTriggerScore;
     private long freezeBulletUntilMillis = 0L;
 
-    protected Game(GameDifficulty difficulty, Runnable gameOverCallback, int bossTriggerScoreStep) {
+    protected Game(GameDifficulty difficulty, Runnable gameOverCallback, GameSound sound, int bossTriggerScoreStep) {
         this.difficulty = difficulty;
         this.gameOverCallback = gameOverCallback;
+        this.sound = sound == null ? GameSound.SILENT : sound;
         this.nextBossTriggerScore = bossTriggerScoreStep;
 
         heroAircraft = HeroAircraft.getInstance(
@@ -175,6 +178,7 @@ public abstract class Game  {
 
         if (canSpawnBoss() && score >= nextBossTriggerScore && !hasBossAlive()) {
             enemyAircrafts.add(createBossEnemy());
+            sound.playBossBgm();
 
             nextBossTriggerScore += nextBossTriggerScoreStep();
         }
@@ -317,6 +321,7 @@ public abstract class Game  {
             if (heroAircraft.crash(enemyBullet)) {
                 heroAircraft.decreaseHp(enemyBullet.getPower());
                 enemyBullet.vanish();
+                sound.playBulletHit();
             }
         }
 
@@ -331,6 +336,7 @@ public abstract class Game  {
                 if (enemyAircraft.crash(bullet)) {
                     enemyAircraft.decreaseHp(bullet.getPower());
                     bullet.vanish();
+                    sound.playBulletHit();
 
                     if (bullet instanceof HeroBullet) {
                         detonateExplosive((HeroBullet) bullet);
@@ -340,7 +346,7 @@ public abstract class Game  {
                         score += enemyAircraft.getScore();
                         maybeGenerateSupply(enemyAircraft);
                         if (enemyAircraft instanceof BossEnemy) {
-
+                            sound.stopBossBgm();
                         }
                     }
                     break;
@@ -367,12 +373,12 @@ public abstract class Game  {
                 supply.vanish();
                 if (supply instanceof BombSupply) {
                     triggerBombEffect((BombSupply) supply);
-
+                    sound.playBombExplosion();
                 } else if (supply instanceof FreezeSupply) {
                     triggerFreezeEffect((FreezeSupply) supply, 4000);
-
+                    sound.playGetSupply();
                 } else {
-
+                    sound.playGetSupply();
                 }
             }
         }
@@ -403,7 +409,7 @@ public abstract class Game  {
                     score += enemy.getScore();
                     maybeGenerateSupply(enemy);
                     if (enemy instanceof BossEnemy) {
-
+                        sound.stopBossBgm();
                     }
                 }
             }
@@ -441,8 +447,12 @@ public abstract class Game  {
 
         // Bomb rule: gain score for all enemies crashed by bomb, but no prop drops.
         for (AbstractEnemy enemy : aliveBeforeTrigger) {
-            if (enemy.notValid() && !(enemy instanceof BossEnemy)) {
-                score += enemy.getScore();
+            if (enemy.notValid()) {
+                if (enemy instanceof BossEnemy) {
+                    sound.stopBossBgm();
+                } else {
+                    score += enemy.getScore();
+                }
             }
         }
     }
@@ -561,6 +571,7 @@ public abstract class Game  {
     private void checkResultAction() {
         if (heroAircraft.getHp() <= 0 && !gameOverFlag) {
             gameOverFlag = true;
+            sound.playGameOver();
             if (gameOverCallback != null) gameOverCallback.run();
         }
     }

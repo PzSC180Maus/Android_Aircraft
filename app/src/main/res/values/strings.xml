@@ -1,3 +1,14 @@
 <resources>
     <string name="app_name">AircraftWar2026</string>
+    <string name="game_title">飞机大战</string>
+    <string name="game_subtitle">AircraftWar2026 · Android</string>
+    <string name="difficulty_easy">简单模式</string>
+    <string name="difficulty_normal">普通模式</string>
+    <string name="difficulty_hard">困难模式</string>
+    <string name="music_switch">音乐与音效</string>
+    <string name="game_hint">拖动屏幕控制飞机</string>
+    <string name="game_over_title">游戏结束</string>
+    <string name="game_over_message">难度：%1$s\n本局得分：%2$d</string>
+    <string name="play_again">再来一局</string>
+    <string name="back_to_menu">返回主菜单</string>
 </resources>
