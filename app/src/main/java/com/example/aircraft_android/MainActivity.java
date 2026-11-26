@@ -42,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
         easy.setOnClickListener(v -> startGame(GameDifficulty.EASY));
         normal.setOnClickListener(v -> startGame(GameDifficulty.NORMAL));
         hard.setOnClickListener(v -> startGame(GameDifficulty.HARD));
+        findViewById(R.id.btn_leaderboard).setOnClickListener(v -> startActivity(new Intent(this, LeaderboardActivity.class)));
     }
 
     private void startGame(GameDifficulty difficulty) {

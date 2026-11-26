@@ -11,6 +11,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Aircraft_android">
+        <activity android:name=".LeaderboardActivity" android:exported="false" />
         <activity
             android:name=".GameActivity"
             android:exported="false"

@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.widget.EditText;
+import edu.hitsz.rank.SqliteScoreRecordDao;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -54,20 +56,38 @@ public class GameActivity extends AppCompatActivity {
             return;
         }
         dialogShowing = true;
+        final int finalScore = gameView.getScore();
+        EditText name = new EditText(this);
+        name.setSingleLine(true); name.setHint("请输入昵称（默认玩家）");
+        name.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(20)});
         new AlertDialog.Builder(this)
                 .setTitle(R.string.game_over_title)
-                .setMessage(getString(R.string.game_over_message,
-                        difficultyLabel(), gameView.getScore()))
+                .setMessage(getString(R.string.game_over_message, difficultyLabel(), finalScore))
+                .setView(name)
                 .setCancelable(false)
-                .setPositiveButton(R.string.play_again, (dialog, which) -> {
+                .setPositiveButton("保存并查看排行榜", (dialog, which) -> {
+                    saveScore(name.getText().toString(), finalScore);
+                    dialogShowing = false;
+                    startActivity(new Intent(this, LeaderboardActivity.class));
+                    finish();
+                })
+                .setNeutralButton("保存并再来一局", (dialog, which) -> {
+                    saveScore(name.getText().toString(), finalScore);
                     dialogShowing = false;
                     gameView.restart();
                 })
-                .setNegativeButton(R.string.back_to_menu, (dialog, which) -> {
+                .setNegativeButton("保存并返回", (dialog, which) -> {
+                    saveScore(name.getText().toString(), finalScore);
                     dialogShowing = false;
                     finish();
                 })
                 .show();
+    }
+
+    private void saveScore(String name, int score) {
+        SqliteScoreRecordDao dao = new SqliteScoreRecordDao(this);
+        try { dao.insert(name, score, difficulty, System.currentTimeMillis()); }
+        finally { dao.close(); }
     }
 
     private String difficultyLabel() {
